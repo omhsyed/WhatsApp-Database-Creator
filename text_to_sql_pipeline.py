@@ -1,11 +1,14 @@
 import mysql.connector
 import datetime
 import unicodedata
-import tkinter as tk
-from tkinter import filedialog
-from tkinter import ttk
+#import tkinter as tk
+#from tkinter import filedialog
+#from tkinter import ttk
 import pandas
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+#import ttkthemes
+#from ttkthemes import ThemedTk
+import streamlit as st
 
 
 # Global Variables
@@ -43,18 +46,20 @@ def setup():
 
     # Extracting the name of the text file without the file type, and creating an SQL database using that name
 
-    file_name = (user_file.split("/")[-1].split(".", 1)[0])
+    #file_name = (user_file.split("/")[-1].split(".", 1)[0])
 
-    global database_name
-    database_name = f"{file_name}_chat_data"
+    #global database_name
+    #database_name = f"{file_name}_chat_data"
 
 
 
     # Reading the given file and storing indiviual lines, messages (just the name and message, without the data/time), the unique names/members that appear in the chat, and all the datetimes and unique datetimes that appear
 
-    file = open(user_file, "r", encoding="utf-8", errors='ignore')
+    #file = open(user_file, "r", encoding="utf-8", errors='ignore')
 
-    content = file.read()
+    content = user_file.read().decode("utf-8", errors="ignore")
+
+    #content = file.read()
 
     global lines
     lines = content.splitlines()[3:]
@@ -327,9 +332,7 @@ def sql_upload():
             cursor.execute("UPDATE date_stats d JOIN (SELECT t.year,t.month,t.day,t.word FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words GROUP BY year,month,day,word) t JOIN (SELECT year,month,day,MAX(word_count) AS max_count FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words GROUP BY year,month,day,word) x GROUP BY year,month,day) m ON t.year=m.year AND t.month=m.month AND t.day=m.day AND t.word_count=m.max_count) r ON d.year=r.year AND d.month=r.month AND d.day=r.day SET d.most_used_word=r.word;")
             
             
-
             connection.commit()
-
 
 
             # pandas DataFrame creation from SQL Tables for visualization in tkinter
@@ -341,7 +344,6 @@ def sql_upload():
                 data_frames.append(pandas.DataFrame(results, columns=column_names))
 
             
-
             
     except mysql.connector.Error as err:
         if err.errno == mysql.connector.errorcode.ER_ACCESS_DENIED_ERROR:
@@ -359,130 +361,136 @@ def sql_upload():
 
 
 
-# ------------------------------------- SIMPLE USER INTERFACE WITH TKINTER ---------------------------------------
+# ------------------------------------- USER INTERFACE, GRAPHING, AND SEARCHING WITH STREAMLIT AND PANDAS ---------------------------------------
 
 
-
-def select_file():
-    global user_file
-    user_file = filedialog.askopenfilename(filetypes = [('text files', '*.txt'),])
+st.title("WhatsApp Database Creator", text_alignment = "center")
+st.subheader("Store, Search, and Visualize Any WhatsApp Chat", text_alignment = "center")
 
 
+tab1, tab2, tab3, tab4 = st.tabs(["Upload Data", "Tables", "Graphs", "Advanced Chat Search"])
 
-def on_button_press():
+if 'status' not in st.session_state:
+    st.session_state['status'] = -1
 
-    global sql_host, sql_name, sql_password
+with tab1:
 
-    sql_host = e1.get()
-    sql_name = e2.get()
-    sql_password = e3.get()
+    st.text("Select your WhatsApp chat export file and enter your MySQL credentials below.", text_alignment = "center")
 
-    connection_status = sql_upload()
+    user_file = st.file_uploader("Select File", type = ".txt")
 
-    window2 = tk.Toplevel(screen)
-    window2.title("Upload Status")
-    window2.geometry("500x200")
+    sql_host = st.text_input("Server Name:", "localhost")
 
-    if connection_status == 0:
-        confirmation_text = tk.Label(window2, text = "Successfully uploaded chat data into MySQL database.", font = ("Arial", 10, "bold"))
-        confirmation_text.pack(expand = True, anchor = "center", pady = 2)
+    sql_name = st.text_input("Username:", "root")
 
-    elif connection_status == 1:
-        confirmation_text = tk.Label(window2, text = "Error: something is wrong with your user name or password.", font = ("Arial", 10, "bold"))
-        confirmation_text.pack(expand = True, anchor = "center", pady = 2)
+    sql_password = st.text_input("Password:", type = "password")
 
-    elif connection_status == 2:
-        confirmation_text = tk.Label(window2, text = "Error: database does not exist.", font = ("Arial", 10, "bold"))
-        confirmation_text.pack(expand = True, anchor = "center", pady = 2)
+    database_name = st.text_input("Choose a name for your database:").strip()
+
+
+    if st.button("Connect and Upload"):
+
+        if (user_file == None):
+            st.error("Select a file to upload.")
+        elif (sql_host == None or sql_name == None or sql_password == None):
+            st.error("Please fill in all fields.")
+        else:
+
+            st.session_state['file'] = user_file
+            st.session_state['host'] = sql_host
+            st.session_state['name'] = sql_name
+            st.session_state['password'] = sql_password
+            st.session_state['db_name'] = database_name
+            
+            st.info("Connecting...")
+
+            connection_status = sql_upload()
+
+            if (connection_status == 0):
+                st.success("Successfully uploaded data! Click other tabs to view tables, graphs, and search features.")
+
+                st.session_state["status"] = 0
+                st.session_state['data_frames'] = data_frames.copy()
+
+            elif (connection_status == 1):
+                st.error("Incorrect credentials. Please try again.")
+                st.session_state["status"] = -1
+            elif (connection_status == 2):
+                st.error("Database does not exist.")
+                st.session_state["status"] = -1
+
+
+with tab2:
+
+    if (st.session_state["status"] == 0):
+
+        st.text("Scroll to view all data tables.", text_alignment = "center")
+
+        for df in st.session_state.get("data_frames"):
+            st.dataframe(df)
+    else:
+        st.info("No data uploaded! Visit the upload tab to submit chat data.")
+
+
+with tab3:
+
+    if (st.session_state["status"] == 0):
+
+        st.text("Scroll to view all graphs.", text_alignment = "center")
+        
+        st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "total_messages")
+
+        st.line_chart(st.session_state.get("data_frames")[4], y = "message_count")
 
     else:
-        confirmation_text = tk.Label(window2, text = f"Failed to upload chat data.\n{connection_status}", font = ("Arial", 8, "bold"))
-        confirmation_text.pack(expand = True, anchor = "center", pady = 2)
+        st.info("No data uploaded! Visit the upload tab to submit chat data.")
 
+with tab4:
 
-    def on_table_button_press():
+    if (st.session_state["status"] == 0):
+
+        st.text("Search your chat with precise specifications.", text_alignment = "center")
         
-        table_window = tk.Toplevel(screen)
+        fn = st.text_input("Member first name:")
+        ln = st.text_input("Member last name:")
+        year = st.text_input("Year (20XX):")
+        month = st.text_input("Month (number):")
+        day = st.text_input("Day (number):")
+        hour = st.text_input("Hour (0-23):")
+        minute = st.text_input("Minute (0-59):")
+        w = st.text_input("Contains word/phrase:")
 
-        subheader = tk.Label(table_window, text = "Adjust column sizes by clicking and dragging. Scroll to view more rows.", font = ("Arial", 10, "bold"))
-        subheader.pack(anchor = "center", pady = 10)
+        def clean(entry, is_int = False):
+            if (entry.strip() == ""):
+                return None
+            else:
+                if (is_int):
+                    return int(entry.strip())
+                else:
+                    return entry.strip().lower()
+                
 
-        table_window.title("Data Tables")
-        table_window.geometry("800x800")
+        all_filters = (clean(fn), clean(fn), clean(ln), clean(ln), clean(year, True), clean(year, True), clean(month, True), clean(month, True), clean(day, True), clean(day, True), clean(hour, True), clean(hour, True), clean(minute, True), clean(minute, True), clean(w), f"%{clean(w)}%")
+                
 
-        for i in range(len(data_frames)):
+        if (st.button("Search")):
+            connection1 = mysql.connector.connect(host = st.session_state["host"], user = st.session_state["name"], password = st.session_state["password"], database = st.session_state["db_name"])
 
-            title = tk.Label(table_window, text = f"{all_tables[i]}", font = ("Arial", 8))
-            title.pack(anchor = "center", pady = 3)
+            if connection1.is_connected():
 
-            tree = ttk.Treeview(table_window, columns = list(data_frames[i].columns), show = "headings")
-            tree.pack(fill = "both", pady = 3, expand = True)
+                cursor1 = connection1.cursor()
 
-            vsb = ttk.Scrollbar(tree, orient = "vertical", command = tree.yview)
-            hsb = ttk.Scrollbar(tree, orient = "horizontal", command = tree.xview)
-            tree.configure(yscrollcommand = vsb.set, xscrollcommand = hsb.set)
+                cursor1.execute(f"USE {database_name}")
 
-            vsb.pack(side = "right", fill = "y")
-            hsb.pack(side = "bottom", fill = "x")
+                cursor1.execute("SELECT * FROM all_messages WHERE (%s IS NULL OR LOWER(first_name) = %s) and (%s IS NULL OR LOWER(last_name) = %s) AND (%s IS NULL OR year = %s) AND (%s IS NULL OR month = %s) AND (%s IS NULL OR day = %s) AND (%s IS NULL OR hour = %s) AND (%s IS NULL OR minute = %s) AND (%s IS NULL OR message LIKE %s);", all_filters)
+                results = cursor1.fetchall()
 
+                column_names = [i[0] for i in cursor1.description]
+                results_df = pandas.DataFrame(results, columns = column_names)
 
-            for col in data_frames[i].columns:
-                tree.heading(col, text = col)
-                tree.column(col, width = 80, stretch = False)
-
-            for _, row in data_frames[i].iterrows():
-                tree.insert("", "end", values = list(row))
-
-        
-    view_tables_button = tk.Button(window2, text = "View Tables", command = on_table_button_press)
-    view_tables_button.pack(anchor = 'center', pady = 10)
-
-
-
-screen = tk.Tk()
-
-screen.title("Text to MySQL Pipeline")
-
-
-screen.geometry("600x400")
-screen.resizable = (False, False)
+            
+                st.dataframe(results_df)
 
 
-header = tk.Label(text = "WhatsApp to MySQL Pipeline", font = ("Arial", 20, "bold"))
-header.pack(anchor = "center", pady = 15)
-
-subheader = tk.Label(text = "Enter the credentials of the MySQL server you want to store the data in.\nThen, export your WhatsApp Chat as a .txt file and upload it below.\n", font = ("Arial", 10, "bold"))
-subheader.pack(anchor = "center", pady = 0)
-
-
-l1 = tk.Label(text = "Server Name")
-l1.pack(anchor = "center", pady = 3)
-
-e1 = tk.Entry()
-e1.pack(anchor = "center", pady = 3)
-
-
-l2 = tk.Label(text = "Username")
-l2.pack(anchor = "center", pady = 3)
-
-e2 = tk.Entry()
-e2.pack(anchor = "center", pady = 3)
-
-
-l3 = tk.Label(text = "Password")
-l3.pack(anchor = "center", pady = 3)
-
-e3 = tk.Entry(show = "*")
-e3.pack(anchor = "center", pady = 3)
-
-
-file_button = tk.Button(text = "Select File", command = select_file)
-file_button.pack(anchor = "center", pady = 20)
-
-
-connect_button = tk.Button(text = "Connect and Upload", command = on_button_press)
-connect_button.pack(anchor = "center", pady = 5)
-
-
-
-tk.mainloop()
+    else:
+        st.info("No data uploaded! Visit the upload tab to submit chat data.")
