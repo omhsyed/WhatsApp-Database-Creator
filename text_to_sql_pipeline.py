@@ -1,13 +1,7 @@
 import mysql.connector
 import datetime
 import unicodedata
-#import tkinter as tk
-#from tkinter import filedialog
-#from tkinter import ttk
 import pandas
-#import matplotlib.pyplot as plt
-#import ttkthemes
-#from ttkthemes import ThemedTk
 import streamlit as st
 
 
@@ -43,23 +37,7 @@ all_tables = ["all_messages", "all_words", "word_stats", "member_stats", "date_s
 
 def setup():
 
-
-    # Extracting the name of the text file without the file type, and creating an SQL database using that name
-
-    #file_name = (user_file.split("/")[-1].split(".", 1)[0])
-
-    #global database_name
-    #database_name = f"{file_name}_chat_data"
-
-
-
-    # Reading the given file and storing indiviual lines, messages (just the name and message, without the data/time), the unique names/members that appear in the chat, and all the datetimes and unique datetimes that appear
-
-    #file = open(user_file, "r", encoding="utf-8", errors='ignore')
-
     content = user_file.read().decode("utf-8", errors="ignore")
-
-    #content = file.read()
 
     global lines
     lines = content.splitlines()[3:]
@@ -71,7 +49,6 @@ def setup():
 
     if content[0] == "[":
         apple = True
-
 
     return apple
 
@@ -242,27 +219,15 @@ def sql_upload():
         android_parsing()
 
     try:
-        
-        # First connection, simply logging in and creating a new database for whatever file is put in
 
-        connection0 = mysql.connector.connect(host = sql_host, user = sql_name, password = sql_password)
-
-        precursor = connection0.cursor()
-        precursor.execute(f"drop database if exists {database_name}")
-        precursor.execute(f"create database {database_name}")
-
-        if 'connection0' in locals() and connection0.is_connected():
-            connection0.close()
-
-
-
-        # Second connection for actual database editing
-
-        connection = mysql.connector.connect(host = sql_host, user = sql_name, password = sql_password, database = database_name)
+        connection = mysql.connector.connect(host = sql_host, user = sql_name, password = sql_password)
 
         if connection.is_connected():
 
             cursor = connection.cursor()
+
+            cursor.execute(f"drop database if exists {database_name}")
+            cursor.execute(f"create database {database_name}")
 
             cursor.execute(f"USE {database_name}")
 
@@ -335,7 +300,7 @@ def sql_upload():
             connection.commit()
 
 
-            # pandas DataFrame creation from SQL Tables for visualization in tkinter
+            # pandas DataFrame creation from SQL Tables for visualization in streamlit
 
             for i in range(len(all_tables)):
                 cursor.execute(f"SELECT * FROM {all_tables[i]};")
@@ -361,6 +326,78 @@ def sql_upload():
 
 
 
+# ------------------------------------- PANDAS DATAFRAMES CREATION (EQUIVALENT TO SQL TABLES) ---------------------------------------
+
+
+
+def dataframe_upload():
+
+    init = setup()
+
+    if (init == True):
+        apple_parsing()
+    else:
+        android_parsing()
+
+    # all_messages dataframe
+    data_frames.append(pandas.DataFrame(message_data, columns = ["year", "month", "day", "hour", "minute", "second", "first_name", "last_name", "message"]))
+
+    # all_words dataframe
+    data_frames.append(pandas.DataFrame(word_data, columns = ["year", "month", "day", "hour", "minute", "second", "first_name", "last_name", "word"]))
+
+    # word_stats dataframe
+    word_counts = pandas.DataFrame(data_frames[1].groupby(["first_name", "last_name", "word"]).size().reset_index())
+    word_counts.columns = ["first_name", "last_name", "word", "count"]
+    data_frames.append(word_counts)
+
+
+    # member_stats dataframe
+
+    total_msgs = data_frames[0].groupby(["first_name", "last_name"]).size().reset_index(name="total_messages")
+    
+    avg_daily_msgs = data_frames[0].groupby(["first_name", "last_name", "year", "month", "day"]).size().groupby(["first_name", "last_name"]).mean().reset_index(name="average_daily_messages")
+   
+    most_common_word = data_frames[2].sort_values("count", ascending=False).groupby(["first_name", "last_name"]).head(1)[["first_name", "last_name", "word"]].rename(columns={"word":"favorite_word"})
+   
+   
+    most_active_day = data_frames[0].groupby(["first_name", "last_name", "year", "month", "day"]).size().reset_index(name="daily_count")
+   
+    most_active_day = most_active_day.loc[most_active_day.groupby(["first_name", "last_name"])["daily_count"].idxmax()][["first_name", "last_name", "year", "month", "day"]].reset_index(drop=True)
+   
+   
+    member_stats = total_msgs.merge(avg_daily_msgs, on = ["first_name", "last_name"]).merge(most_common_word, on = ["first_name", "last_name"]).merge(most_active_day, on = ["first_name", "last_name"])
+   
+    member_stats = member_stats.rename(columns={"year":"most_active_date_year", "month":"most_active_date_month", "day":"most_active_date_day"})
+
+    data_frames.append(member_stats)
+
+
+    # date_stats (note for viewers: gpt-made)
+
+    date_stats = data_frames[0][["year", "month", "day"]].drop_duplicates().reset_index(drop = True)
+    
+    date_stats["message_count"] = date_stats.merge(data_frames[0].groupby(["year", "month", "day"]).size().reset_index(name = "count"), on = ["year", "month", "day"], how = "left")["count"]
+    
+    
+    most_active_member = data_frames[0].groupby(["year", "month", "day", "first_name", "last_name"]).size().reset_index(name = "message_count")
+    
+    most_active_member = most_active_member.loc[most_active_member.groupby(["year", "month", "day"])["message_count"].idxmax()][["year", "month", "day", "first_name", "last_name"]].reset_index(drop = True)
+    
+    
+    date_stats = date_stats.merge(most_active_member, on = ["year", "month", "day"], how = "left").rename(columns = {"first_name":"most_active_member_first", "last_name":"most_active_member_last"})
+    
+    
+    most_used_word = data_frames[1].groupby(["year", "month", "day", "word"]).size().reset_index(name = "word_count")
+    
+    most_used_word = most_used_word.loc[most_used_word.groupby(["year", "month", "day"])["word_count"].idxmax()][["year", "month", "day", "word"]].reset_index(drop = True)
+    
+    
+    date_stats = date_stats.merge(most_used_word, on = ["year", "month", "day"], how = "left").rename(columns = {"word":"most_used_word"})
+    
+    data_frames.append(date_stats)
+
+    
+
 # ------------------------------------- USER INTERFACE, GRAPHING, AND SEARCHING WITH STREAMLIT AND PANDAS ---------------------------------------
 
 
@@ -375,54 +412,61 @@ if 'status' not in st.session_state:
 
 with tab1:
 
-    st.text("Select your WhatsApp chat export file and enter your MySQL credentials below.", text_alignment = "center")
+    st.text("Select your WhatsApp chat export file.", text_alignment = "center")
 
     user_file = st.file_uploader("Select File", type = ".txt")
 
-    sql_host = st.text_input("Server Name:", "localhost")
+    if (st.checkbox("Upload data to a MySQL server?")):
 
-    sql_name = st.text_input("Username:", "root")
+        sql_host = st.text_input("Server Name:", "localhost")
 
-    sql_password = st.text_input("Password:", type = "password")
+        sql_name = st.text_input("Username:", "root")
 
-    database_name = st.text_input("Choose a name for your database:").strip()
+        sql_password = st.text_input("Password:", type = "password")
 
+        database_name = st.text_input("Choose a name for your database:").strip()
 
-    if st.button("Connect and Upload"):
+        if st.button("Connect and Upload"):
 
-        if (user_file == None):
-            st.error("Select a file to upload.")
-        elif (sql_host == None or sql_name == None or sql_password == None):
-            st.error("Please fill in all fields.")
-        else:
+            if (user_file == None):
+                st.error("Select a file to upload.")
+            elif (sql_host == None or sql_name == None or sql_password == None):
+                st.error("Please fill in all fields.")
+            else:
 
-            st.session_state['file'] = user_file
-            st.session_state['host'] = sql_host
-            st.session_state['name'] = sql_name
-            st.session_state['password'] = sql_password
-            st.session_state['db_name'] = database_name
-            
-            st.info("Connecting...")
+                st.session_state['file'] = user_file
+                st.session_state['host'] = sql_host
+                st.session_state['name'] = sql_name
+                st.session_state['password'] = sql_password
+                st.session_state['db_name'] = database_name
+                
+                st.info("Connecting...")
 
-            connection_status = sql_upload()
+                connection_status = sql_upload()
 
-            if (connection_status == 0):
-                st.success("Successfully uploaded data! Click other tabs to view tables, graphs, and search features.")
+                if (connection_status == 0):
+                    st.success("Successfully uploaded data! Click other tabs to view tables, graphs, and search features.")
 
-                st.session_state["status"] = 0
-                st.session_state['data_frames'] = data_frames.copy()
+                    st.session_state["status"] = 0
+                    st.session_state['data_frames'] = data_frames.copy()
 
-            elif (connection_status == 1):
-                st.error("Incorrect credentials. Please try again.")
-                st.session_state["status"] = -1
-            elif (connection_status == 2):
-                st.error("Database does not exist.")
-                st.session_state["status"] = -1
+                elif (connection_status == 1):
+                    st.error("Incorrect credentials. Please try again.")
+                    st.session_state["status"] = -1
+                elif (connection_status == 2):
+                    st.error("Database does not exist.")
+                    st.session_state["status"] = -1
+    else:
+        if (st.button("Create Database")):
+            dataframe_upload()
+            st.session_state["status"] = 1
+            st.session_state['data_frames'] = data_frames.copy()
+            st.success("Successfully created database! Click other tabs to view tables, graphs, and search features.")
 
 
 with tab2:
 
-    if (st.session_state["status"] == 0):
+    if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
         st.text("Scroll to view all data tables.", text_alignment = "center")
 
@@ -434,7 +478,7 @@ with tab2:
 
 with tab3:
 
-    if (st.session_state["status"] == 0):
+    if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
         st.text("Scroll to view all graphs.", text_alignment = "center")
         
@@ -447,7 +491,7 @@ with tab3:
 
 with tab4:
 
-    if (st.session_state["status"] == 0):
+    if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
         st.text("Search your chat with precise specifications.", text_alignment = "center")
         
@@ -470,26 +514,60 @@ with tab4:
                     return entry.strip().lower()
                 
 
-        all_filters = (clean(fn), clean(fn), clean(ln), clean(ln), clean(year, True), clean(year, True), clean(month, True), clean(month, True), clean(day, True), clean(day, True), clean(hour, True), clean(hour, True), clean(minute, True), clean(minute, True), clean(w), f"%{clean(w)}%")
+        if (st.session_state["status"] == 0):
+
+            all_filters = (clean(fn), clean(fn), clean(ln), clean(ln), clean(year, True), clean(year, True), clean(month, True), clean(month, True), clean(day, True), clean(day, True), clean(hour, True), clean(hour, True), clean(minute, True), clean(minute, True), clean(w), f"%{clean(w)}%")
+                    
+
+            if (st.button("Search")):
+                connection1 = mysql.connector.connect(host = st.session_state["host"], user = st.session_state["name"], password = st.session_state["password"], database = st.session_state["db_name"])
+
+                if connection1.is_connected():
+
+                    cursor1 = connection1.cursor()
+
+                    cursor1.execute(f"USE {database_name}")
+
+                    cursor1.execute("SELECT * FROM all_messages WHERE (%s IS NULL OR LOWER(first_name) = %s) and (%s IS NULL OR LOWER(last_name) = %s) AND (%s IS NULL OR year = %s) AND (%s IS NULL OR month = %s) AND (%s IS NULL OR day = %s) AND (%s IS NULL OR hour = %s) AND (%s IS NULL OR minute = %s) AND (%s IS NULL OR message LIKE %s);", all_filters)
+                    results = cursor1.fetchall()
+
+                    column_names = [i[0] for i in cursor1.description]
+                    results_df = pandas.DataFrame(results, columns = column_names)
+
                 
+                    st.dataframe(results_df)
+        
+        elif (st.session_state["status"] == 1):
 
-        if (st.button("Search")):
-            connection1 = mysql.connector.connect(host = st.session_state["host"], user = st.session_state["name"], password = st.session_state["password"], database = st.session_state["db_name"])
+            if (st.button("Search")):
 
-            if connection1.is_connected():
+                df_filtered = st.session_state['data_frames'][0]
 
-                cursor1 = connection1.cursor()
+                if clean(fn) is not None:
+                    df_filtered = df_filtered[df_filtered["first_name"].str.lower() == clean(fn)]
 
-                cursor1.execute(f"USE {database_name}")
+                if clean(ln) is not None:
+                    df_filtered = df_filtered[df_filtered["last_name"].str.lower() == clean(ln)]
 
-                cursor1.execute("SELECT * FROM all_messages WHERE (%s IS NULL OR LOWER(first_name) = %s) and (%s IS NULL OR LOWER(last_name) = %s) AND (%s IS NULL OR year = %s) AND (%s IS NULL OR month = %s) AND (%s IS NULL OR day = %s) AND (%s IS NULL OR hour = %s) AND (%s IS NULL OR minute = %s) AND (%s IS NULL OR message LIKE %s);", all_filters)
-                results = cursor1.fetchall()
+                if clean(year, True) is not None:
+                    df_filtered = df_filtered[df_filtered["year"] == clean(year, True)]
 
-                column_names = [i[0] for i in cursor1.description]
-                results_df = pandas.DataFrame(results, columns = column_names)
+                if clean(month, True) is not None:
+                    df_filtered = df_filtered[df_filtered["month"] == clean(month, True)]
 
-            
-                st.dataframe(results_df)
+                if clean(day, True) is not None:
+                    df_filtered = df_filtered[df_filtered["day"] == clean(day, True)]
+
+                if clean(hour, True) is not None:
+                    df_filtered = df_filtered[df_filtered["hour"] == clean(hour, True)]
+
+                if clean(minute, True) is not None:
+                    df_filtered = df_filtered[df_filtered["minute"] == clean(minute, True)]
+
+                if clean(w) is not None:
+                    df_filtered = df_filtered[df_filtered["message"].str.contains(w, case=False, na=False)]
+
+                st.dataframe(df_filtered)
 
 
     else:
