@@ -401,8 +401,8 @@ def dataframe_upload():
 # ------------------------------------- USER INTERFACE, GRAPHING, AND SEARCHING WITH STREAMLIT AND PANDAS ---------------------------------------
 
 
-st.title("WhatsApp Database Creator", text_alignment = "center")
-st.subheader("Store, Search, and Visualize Any WhatsApp Chat", text_alignment = "center")
+st.title("WhatsApp Database Creator")
+st.subheader("Store, Search, and Visualize Any WhatsApp Chat")
 
 
 tab1, tab2, tab3, tab4 = st.tabs(["Upload Data", "Tables", "Graphs", "Advanced Chat Search"])
@@ -412,7 +412,7 @@ if 'status' not in st.session_state:
 
 with tab1:
 
-    st.text("Select your WhatsApp chat export file.", text_alignment = "center")
+    st.text("Select your WhatsApp chat export file.")
 
     user_file = st.file_uploader("Select File", type = ".txt")
 
@@ -468,7 +468,7 @@ with tab2:
 
     if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
-        st.text("Scroll to view all data tables.", text_alignment = "center")
+        st.text("Scroll to view all data tables.")
 
         for df in st.session_state.get("data_frames"):
             st.dataframe(df)
@@ -480,7 +480,7 @@ with tab3:
 
     if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
-        st.text("Scroll to view all graphs.", text_alignment = "center")
+        st.text("Scroll to view all graphs.")
         
         st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "total_messages")
 
@@ -493,7 +493,7 @@ with tab4:
 
     if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
-        st.text("Search your chat with precise specifications.", text_alignment = "center")
+        st.text("Search your chat with precise specifications.")
         
         fn = st.text_input("Member first name:")
         ln = st.text_input("Member last name:")
@@ -571,4 +571,5 @@ with tab4:
 
 
     else:
+
         st.info("No data uploaded! Visit the upload tab to submit chat data.")
