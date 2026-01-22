@@ -483,16 +483,16 @@ with tab3:
     if (st.session_state["status"] == 0 or st.session_state["status"] == 1):
 
         st.text("Total Message Count by Member")
-        st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "total_messages", x_label = "Name", y_label = "Message Count")
+        st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "total_messages")#, x_label = "Name", y_label = "Message Count")
 
         st.text("Average Daily Activity by Member")
-        st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "average_messages_per_active_day", x_label = "Name", y_label = "Average Messages (Per Active Day)")
+        st.bar_chart(st.session_state.get("data_frames")[3], x = "first_name", y = "average_messages_per_active_day")#, x_label = "Name", y_label = "Average Messages (Per Active Day)")
 
         st.text("Chat Activity Over Time")
-        st.line_chart(st.session_state.get("data_frames")[4], y = "message_count", x_label = "Day", y_label = "Message Count")
+        st.line_chart(st.session_state.get("data_frames")[4], y = "message_count")#, x_label = "Day", y_label = "Message Count")
 
         st.text("Frequency of Most Common Words")
-        st.bar_chart(st.session_state.get("data_frames")[2].groupby("word", as_index = False)["count"].sum().sort_values("count", ascending = False).head(25), x = "word", y = "count", x_label = "Word", y_label = "Count")
+        st.bar_chart(st.session_state.get("data_frames")[2].groupby("word", as_index = False)["count"].sum().sort_values("count", ascending = False).head(25), x = "word", y = "count")#, x_label = "Word", y_label = "Count")
 
     else:
         st.info("No data uploaded! Visit the upload tab to submit chat data.")
