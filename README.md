@@ -1,6 +1,6 @@
 # WhatsApp-Database-Creator
 
-Website Link:  https://whatsapp-database-creator.streamlit.app/
+Website link (copy and paste into browser):  whatsapp-database-creator.streamlit.app
 
 This is a Streamlit website built on a Python script which prompts the user for an exported WhatsApp chat .txt file (and optionally MySQL server info), automatically extracts data including member names, messages, dates, etc., and creates data tables with raw and calculated information. If the MySQL option is selected, the data tables are created within the user's MySQL server and any calculations are performed within SQL. 
 
@@ -13,6 +13,7 @@ The data flow can be described as:
 - Create DataFrames using pandas library
 - Present data tables and graphs on website using Streamlit and pandas
 - Allow for chat searching using another MySQL connection (if that option was selected) or pandas DataFrame filtering
+
 
 
 
