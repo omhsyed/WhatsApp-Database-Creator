@@ -458,10 +458,13 @@ with tab1:
                     st.session_state["status"] = -1
     else:
         if (st.button("Create Database")):
-            dataframe_upload()
-            st.session_state["status"] = 1
-            st.session_state['data_frames'] = data_frames.copy()
-            st.success("Successfully created database! Click other tabs to view tables, graphs, and search features.")
+            if (user_file == None):
+                st.error("Select a file to upload.")
+            else:
+                dataframe_upload()
+                st.session_state["status"] = 1
+                st.session_state['data_frames'] = data_frames.copy()
+                st.success("Successfully created database! Click other tabs to view tables, graphs, and search features.")
 
 
 with tab2:
