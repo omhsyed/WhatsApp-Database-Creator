@@ -468,6 +468,9 @@ with tab1:
                 elif (connection_status == 2):
                     st.error("Database does not exist.")
                     st.session_state["status"] = -1
+                else:
+                    st.error(f"MySQL error: {connection_status}")
+                    st.session_state["status"] = -1
     else:
         if (st.button("Create Database")):
             if (user_file == None):
