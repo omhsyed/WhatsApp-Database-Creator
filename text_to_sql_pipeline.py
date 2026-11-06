@@ -254,7 +254,7 @@ def sql_upload():
             
             # ALL_WORDS TABLE (info from python is inserted into table)
 
-            cursor.execute("CREATE TABLE all_words (year int, month int, day int, hour int, minute int, second int, first_name varchar(1000), last_name varchar(1000), word varchar(1000));")
+            cursor.execute("CREATE TABLE all_words (year int, month int, day int, hour int, minute int, second int, first_name varchar(1000), last_name varchar(1000), word varchar(5000));")
 
             cursor.executemany("INSERT INTO all_words (year, month, day, hour, minute, second, first_name, last_name, word) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);", word_data)
 
