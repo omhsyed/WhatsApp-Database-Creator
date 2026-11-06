@@ -246,7 +246,7 @@ def sql_upload():
 
             # ALL_MESSAGES TABLE (info from python is inserted into data_by_message table)
             
-            cursor.execute("CREATE TABLE all_messages (year int, month int, day int, hour int, minute int, second int, first_name varchar(255), last_name varchar(255), message varchar(5000));")
+            cursor.execute("CREATE TABLE all_messages (year int, month int, day int, hour int, minute int, second int, first_name varchar(1000), last_name varchar(1000), message varchar(5000));")
         
             cursor.executemany("INSERT INTO all_messages VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", message_data)
             
@@ -254,7 +254,7 @@ def sql_upload():
             
             # ALL_WORDS TABLE (info from python is inserted into table)
 
-            cursor.execute("CREATE TABLE all_words (year int, month int, day int, hour int, minute int, second int, first_name varchar(255), last_name varchar(255), word varchar(500));")
+            cursor.execute("CREATE TABLE all_words (year int, month int, day int, hour int, minute int, second int, first_name varchar(1000), last_name varchar(1000), word varchar(1000));")
 
             cursor.executemany("INSERT INTO all_words (year, month, day, hour, minute, second, first_name, last_name, word) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);", word_data)
 
@@ -279,7 +279,7 @@ def sql_upload():
 
 
                 # Most common word
-            cursor.execute("ALTER TABLE member_stats ADD favorite_word varchar(255)")
+            cursor.execute("ALTER TABLE member_stats ADD favorite_word varchar(1000)")
 
             cursor.execute("UPDATE member_stats ms JOIN (SELECT wc.first_name, wc.last_name, wc.word FROM word_stats wc JOIN (SELECT first_name, last_name, MAX(count) AS max_count FROM word_stats GROUP BY first_name, last_name) m ON wc.first_name = m.first_name AND wc.last_name = m.last_name AND wc.count = m.max_count) t ON ms.first_name = t.first_name AND ms.last_name = t.last_name SET ms.favorite_word = t.word;")
 
@@ -293,7 +293,7 @@ def sql_upload():
 
             # DATE_STATS (calculated from raw SQL tables)
 
-            cursor.execute("CREATE TABLE date_stats (year int, month int, day int, message_count int, most_active_member_first varchar(255), most_active_member_last varchar(255), most_used_word varchar(500));")
+            cursor.execute("CREATE TABLE date_stats (year int, month int, day int, message_count int, most_active_member_first varchar(1000), most_active_member_last varchar(1000), most_used_word varchar(1000));")
 
             cursor.execute("INSERT INTO date_stats (year, month, day) SELECT year, month, day FROM all_messages GROUP BY year, month, day;")
 
