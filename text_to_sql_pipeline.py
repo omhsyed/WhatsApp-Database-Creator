@@ -19,7 +19,56 @@ message_data = []
 
 word_data = []
 
-stop_words = ["are", "was", "the", "and", "to", "is", "of", "a"]
+#stop_words = ["are", "was", "the", "and", "to", "is", "of", "a"]
+
+stop_words = [
+    # articles, conjunctions, prepositions
+    "a", "an", "the", "and", "or", "but", "nor", "so", "yet", "for", "of", "at",
+    "by", "in", "on", "to", "up", "as", "if", "then", "than", "that", "this",
+    "these", "those", "with", "about", "into", "over", "from", "out", "off",
+    "down", "after", "before", "again", "once", "while", "because", "until",
+    "against", "between", "through", "during", "above", "below", "under",
+    "around", "across", "within", "without", "via", "per",
+
+    # pronouns
+    "i", "me", "my", "mine", "myself", "you", "your", "yours", "yourself",
+    "he", "him", "his", "himself", "she", "her", "hers", "herself", "it",
+    "its", "itself", "we", "us", "our", "ours", "ourselves", "they", "them",
+    "their", "theirs", "themselves", "who", "whom", "whose", "which", "what",
+    "whatever", "whoever", "one", "ones", "someone", "something", "anyone",
+    "anything", "everyone", "everything", "nobody", "nothing",
+
+    # be / have / do / modals
+    "am", "is", "are", "was", "were", "be", "been", "being", "have", "has",
+    "had", "having", "do", "does", "did", "doing", "done", "will", "would",
+    "shall", "should", "can", "could", "may", "might", "must", "ought",
+
+    # contractions (with and without apostrophes, since chats are messy)
+    "i'm", "im", "i've", "ive", "i'll", "ill", "i'd", "id", "you're", "youre",
+    "you've", "youve", "you'll", "youll", "you'd", "youd", "he's", "hes",
+    "she's", "shes", "it's", "its", "we're", "were", "we've", "weve",
+    "we'll", "well", "we'd", "wed", "they're", "theyre", "they've", "theyve",
+    "they'll", "theyll", "they'd", "theyd", "that's", "thats", "there's",
+    "theres", "here's", "heres", "what's", "whats", "who's", "whos",
+    "let's", "lets", "isn't", "isnt", "aren't", "arent", "wasn't", "wasnt",
+    "weren't", "werent", "don't", "dont", "doesn't", "doesnt", "didn't",
+    "didnt", "won't", "wont", "wouldn't", "wouldnt", "can't", "cant",
+    "cannot", "couldn't", "couldnt", "shouldn't", "shouldnt", "haven't",
+    "havent", "hasn't", "hasnt", "hadn't", "hadnt", "ain't", "aint",
+    "y'all", "yall", "gonna", "gotta", "wanna", "gimme", "lemme", "kinda",
+    "sorta", "dunno", "ima", "tryna", "finna",
+
+    # question words / adverbs / quantifiers
+    "when", "where", "why", "how", "here", "there", "now", "just", "only",
+    "also", "too", "very", "really", "quite", "pretty", "even", "still",
+    "already", "ever", "never", "always", "sometimes", "often", "maybe",
+    "perhaps", "probably", "actually", "basically", "literally", "honestly",
+    "totally", "definitely", "seriously", "kind", "sort", "like", "much",
+    "many", "more", "most", "less", "least", "some", "any", "all", "both",
+    "each", "every", "few", "other", "another", "such", "same", "own", "no",
+    "not", "none", "either", "neither", "else", "anyway", "anyways",
+    "whatever", "though", "although", "however", "otherwise", "instead",
+    "almost", "enough", "rather", "somewhat", "anymore", "away", "back"]
 
 lines = []
 
@@ -175,7 +224,7 @@ def apple_parsing():
             msg = msg.replace("\u200e", "").replace("\u202f", "").replace("<This message was edited>", "").strip()
             
 
-            if msg in ["sticker omitted", "image omitted", "video omitted", "GIF omitted", "<sticker omitted>", "<image omitted>", "<video omitted>", "<GIF omitted>"]:
+            if msg.startswith(("sticker omitted", "image omitted", "video omitted", "GIF omitted", "<sticker omitted>", "<image omitted>", "<video omitted>", "<GIF omitted>")):
                 if (msg[0] == "<"):
                     word_data.append((y, m, d, h, min, s, f, l, f"[{msg.split()[0].upper()[1:]}]"))
                 else:
