@@ -89,6 +89,10 @@ def android_parsing():
 
         if len(message_part.split(":")) >= 2:
             n, msg = message_part.split(":", 1)
+
+            if (" " not in n):
+                continue
+            
             f, l = n.split(" ", 1)
 
             msg = msg.replace("\u200e", "").replace("\u202f", "").replace("<This message was edited>", "").strip()
@@ -165,6 +169,10 @@ def apple_parsing():
 
         if len(message_part.split(":")) >= 2:
             n, msg = message_part.split(":", 1)
+
+            if (" " not in n):
+                continue
+            
             f, l = n.split(" ", 1)
 
             msg = msg.replace("\u200e", "").replace("\u202f", "").replace("<This message was edited>", "").strip()
@@ -322,7 +330,8 @@ def sql_upload():
     finally:
         if 'connection' in locals() and connection.is_connected():
             connection.close()
-            return 0
+    
+    return 0
 
 
 
