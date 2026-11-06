@@ -112,9 +112,6 @@ def android_parsing():
 
                 w = word.lower()
 
-                if (w in stop_words):
-                    continue
-
                 if ("instagram.com" in w):
                     w = "[INSTAGRAM LINK]"
                 if ("youtu.be" in w or "youtube.com" in w):
@@ -195,9 +192,6 @@ def apple_parsing():
 
                 w = word.lower()
 
-                if (w in stop_words):
-                    continue
-
                 if ("instagram.com" in w):
                     w = "[INSTAGRAM LINK]"
                 if ("youtu.be" in w or "youtube.com" in w):
@@ -228,6 +222,9 @@ def sql_upload():
         apple_parsing()
     else:
         android_parsing()
+
+    # one %s per stop word, used to exclude stop words from favorite word calculations
+    placeholders = ", ".join(["%s"] * len(stop_words))
 
     try:
 
@@ -278,10 +275,10 @@ def sql_upload():
             cursor.execute("UPDATE member_stats JOIN (SELECT first_name, last_name, AVG(count) as avg_column FROM(SELECT first_name, last_name, COUNT(*) as count FROM all_messages GROUP BY first_name, last_name, year, month, day) AS count_table GROUP BY first_name, last_name) AS avg_table ON member_stats.first_name = avg_table.first_name AND member_stats.last_name = avg_table.last_name SET member_stats.average_messages_per_active_day = avg_table.avg_column;")
 
 
-                # Most common word
+                # Most common word (stop words excluded)
             cursor.execute("ALTER TABLE member_stats ADD favorite_word varchar(1000)")
 
-            cursor.execute("UPDATE member_stats ms JOIN (SELECT wc.first_name, wc.last_name, wc.word FROM word_stats wc JOIN (SELECT first_name, last_name, MAX(count) AS max_count FROM word_stats GROUP BY first_name, last_name) m ON wc.first_name = m.first_name AND wc.last_name = m.last_name AND wc.count = m.max_count) t ON ms.first_name = t.first_name AND ms.last_name = t.last_name SET ms.favorite_word = t.word;")
+            cursor.execute(f"UPDATE member_stats ms JOIN (SELECT wc.first_name, wc.last_name, wc.word FROM word_stats wc JOIN (SELECT first_name, last_name, MAX(count) AS max_count FROM word_stats WHERE word NOT IN ({placeholders}) GROUP BY first_name, last_name) m ON wc.first_name = m.first_name AND wc.last_name = m.last_name AND wc.count = m.max_count WHERE wc.word NOT IN ({placeholders})) t ON ms.first_name = t.first_name AND ms.last_name = t.last_name SET ms.favorite_word = t.word;", stop_words * 2)
 
 
                 # Most active date
@@ -303,9 +300,9 @@ def sql_upload():
                 # finding most active member on each day
             cursor.execute("UPDATE date_stats d JOIN (SELECT t.year,t.month,t.day,t.first_name,t.last_name FROM (SELECT year,month,day,first_name,last_name,COUNT(*) AS message_count FROM all_messages GROUP BY year,month,day,first_name,last_name) t JOIN (SELECT year,month,day,MAX(message_count) AS max_count FROM (SELECT year,month,day,first_name,last_name,COUNT(*) AS message_count FROM all_messages GROUP BY year,month,day,first_name,last_name) x GROUP BY year,month,day) m ON t.year=m.year AND t.month=m.month AND t.day=m.day AND t.message_count=m.max_count) r ON d.year=r.year AND d.month=r.month AND d.day=r.day SET d.most_active_member_first=r.first_name, d.most_active_member_last=r.last_name;")
             
-                # finding most used word on each date
+                # finding most used word on each date (stop words excluded)
 
-            cursor.execute("UPDATE date_stats d JOIN (SELECT t.year,t.month,t.day,t.word FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words GROUP BY year,month,day,word) t JOIN (SELECT year,month,day,MAX(word_count) AS max_count FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words GROUP BY year,month,day,word) x GROUP BY year,month,day) m ON t.year=m.year AND t.month=m.month AND t.day=m.day AND t.word_count=m.max_count) r ON d.year=r.year AND d.month=r.month AND d.day=r.day SET d.most_used_word=r.word;")
+            cursor.execute(f"UPDATE date_stats d JOIN (SELECT t.year,t.month,t.day,t.word FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words WHERE word NOT IN ({placeholders}) GROUP BY year,month,day,word) t JOIN (SELECT year,month,day,MAX(word_count) AS max_count FROM (SELECT year,month,day,word,COUNT(*) AS word_count FROM all_words WHERE word NOT IN ({placeholders}) GROUP BY year,month,day,word) x GROUP BY year,month,day) m ON t.year=m.year AND t.month=m.month AND t.day=m.day AND t.word_count=m.max_count) r ON d.year=r.year AND d.month=r.month AND d.day=r.day SET d.most_used_word=r.word;", stop_words * 2)
             
             
             connection.commit()
@@ -369,7 +366,8 @@ def dataframe_upload():
     
     avg_daily_msgs = data_frames[0].groupby(["first_name", "last_name", "year", "month", "day"]).size().groupby(["first_name", "last_name"]).mean().reset_index(name="average_messages_per_active_day")
    
-    most_common_word = data_frames[2].sort_values("count", ascending=False).groupby(["first_name", "last_name"]).head(1)[["first_name", "last_name", "word"]].rename(columns={"word":"favorite_word"})
+    # stop words excluded from favorite word
+    most_common_word = data_frames[2][~data_frames[2]["word"].isin(stop_words)].sort_values("count", ascending=False).groupby(["first_name", "last_name"]).head(1)[["first_name", "last_name", "word"]].rename(columns={"word":"favorite_word"})
    
    
     most_active_day = data_frames[0].groupby(["first_name", "last_name", "year", "month", "day"]).size().reset_index(name="daily_count")
@@ -377,7 +375,7 @@ def dataframe_upload():
     most_active_day = most_active_day.loc[most_active_day.groupby(["first_name", "last_name"])["daily_count"].idxmax()][["first_name", "last_name", "year", "month", "day"]].reset_index(drop=True)
    
    
-    member_stats = total_msgs.merge(avg_daily_msgs, on = ["first_name", "last_name"]).merge(most_common_word, on = ["first_name", "last_name"]).merge(most_active_day, on = ["first_name", "last_name"])
+    member_stats = total_msgs.merge(avg_daily_msgs, on = ["first_name", "last_name"]).merge(most_common_word, on = ["first_name", "last_name"], how = "left").merge(most_active_day, on = ["first_name", "last_name"])
    
     member_stats = member_stats.rename(columns={"year":"most_active_date_year", "month":"most_active_date_month", "day":"most_active_date_day"})
 
@@ -399,7 +397,8 @@ def dataframe_upload():
     date_stats = date_stats.merge(most_active_member, on = ["year", "month", "day"], how = "left").rename(columns = {"first_name":"most_active_member_first", "last_name":"most_active_member_last"})
     
     
-    most_used_word = data_frames[1].groupby(["year", "month", "day", "word"]).size().reset_index(name = "word_count")
+    # stop words excluded from most used word
+    most_used_word = data_frames[1][~data_frames[1]["word"].isin(stop_words)].groupby(["year", "month", "day", "word"]).size().reset_index(name = "word_count")
     
     most_used_word = most_used_word.loc[most_used_word.groupby(["year", "month", "day"])["word_count"].idxmax()][["year", "month", "day", "word"]].reset_index(drop = True)
     
@@ -507,7 +506,9 @@ with tab3:
         st.line_chart(st.session_state.get("data_frames")[4], y = "message_count")#, x_label = "Day", y_label = "Message Count")
 
         st.text("Frequency of Most Common Words")
-        st.bar_chart(st.session_state.get("data_frames")[2].groupby("word", as_index = False)["count"].sum().sort_values("count", ascending = False).head(25), x = "word", y = "count")#, x_label = "Word", y_label = "Count")
+        common_words = st.session_state.get("data_frames")[2]
+        common_words = common_words[~common_words["word"].isin(stop_words)]
+        st.bar_chart(common_words.groupby("word", as_index = False)["count"].sum().sort_values("count", ascending = False).head(25), x = "word", y = "count")#, x_label = "Word", y_label = "Count")
 
     else:
         st.info("No data uploaded! Visit the upload tab to submit chat data.")
@@ -595,4 +596,3 @@ with tab4:
 
     else:
         st.info("No data uploaded! Visit the upload tab to submit chat data.")
-
