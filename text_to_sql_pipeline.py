@@ -178,8 +178,11 @@ def apple_parsing():
             msg = msg.replace("\u200e", "").replace("\u202f", "").replace("<This message was edited>", "").strip()
             
 
-            if msg in ["sticker omitted", "image omitted", "video omitted", "GIF omitted"]:
-                word_data.append((y, m, d, h, min, s, f, l, f"[{msg.split()[0].upper()}]"))
+            if msg in ["sticker omitted", "image omitted", "video omitted", "GIF omitted", "<sticker omitted>", "<image omitted>", "<video omitted>", "<GIF omitted>"]:
+                if (msg[0] == "<"):
+                    word_data.append((y, m, d, h, min, s, f, l, f"[{msg.split()[0].upper()[1:]}]"))
+                else:
+                    word_data.append((y, m, d, h, min, s, f, l, f"[{msg.split()[0].upper()}]"))
                 continue
 
             if (msg == "This message was deleted."):
