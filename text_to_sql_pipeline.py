@@ -231,7 +231,7 @@ def apple_parsing():
                     word_data.append((y, m, d, h, min, s, f, l, f"[{msg.split()[0].upper()}]"))
                 continue
 
-            if (msg == "This message was deleted."):
+            if (("This message was deleted." in msg) or ("This message was deleted" in msg)):
                 word_data.append((y, m, d, h, min, s, f, l, "[DELETED MESSAGE]"))
                 continue
 
